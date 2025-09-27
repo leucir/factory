@@ -6,29 +6,73 @@ A prototype factory for building Docker images from composable layers. The goal 
 
 ## Architecture Principles
 
+- **Container‑as‑a‑product**
+  - Treat each image as a first‑class product with a clear spec: template ID/version + module versions + target platform. The spec lives in the consolidated manifest store (`control_plane/data/manifest.json`) and is addressed by `manifest_id`.
+  - Products are reproducible and testable: every build emits evidence, an SBOM, and a compatibility record. Past records help decide when to rebuild vs. reuse.
+  - The control plane exposes read‑only APIs so multiple teams can consume the same product definitions without coupling to the build implementation.
+
+- **Planes (separation of concerns)**
+  - Control plane: read‑only API, manifest store, plan expansion, and (in a future phase) work scheduling. It describes “what” should be built and records “what happened”.
+  - Compute plane: build executors that render, build, and test on platform‑specific hosts (amd64/arm64/GPU). It executes the “how” and pushes images, evidence, and records.
+  - Data plane: shared stores (OCI registry/cache, evidence/SBOM object storage, compatibility records). It preserves “what was produced”.
+  - This prototype implements a minimal control plane and local executors; see Design Docs for the scale‑out plan.
+
 - **Composable layers over monolithic Dockerfiles** – Templates + module fragments make it easy to swap stacks (e.g., CUDA vs. CPU) and keep changes localized.
-  - Tradeoffs: more files/manifests to coordinate, ordering constraints between fragments, and no built-in type checks for cross-module contracts.
-  - Mitigations: codify simple interfaces (env args/labels/paths), lint fragments, and add per-module smoke tests.
+  - Injection points are explicit via template markers `#--MODULE:<name>--# … #--ENDMODULE--#` and stitched by `tools/stitch.py`.
+  - Module metadata (`module.json`) provides `order` so assembly is deterministic across versions.
+  - Local dev loop: render one fragment with `core_smoke` or run matrix explorations with `tools/explore-plan.sh`.
+  - Caching synergy: stable layers (Security/Core) hit cache even when fast‑moving layers (Light/App) change.
+  - Considerations & mitigations: more files/manifests to coordinate and ordering constraints between fragments; no built‑in type checks across modules. Address by codifying simple interfaces (env args/labels/paths), linting fragments, and adding per‑module smoke tests.
 
 - **Manifest-driven versioning** – Explicit template/module versions make rebuilds deterministic and reproducible.
-  - Tradeoffs: version matrix can grow quickly; drift if versions are changed ad‑hoc.
-  - Mitigations: curate supported sets, pin versions in manifests, and use compatibility records as an allowlist/cache.
+  - The consolidated store (`control_plane/data/manifest.json`) keys manifests by `manifest_id` (e.g., `llm_factory`, `llm_factory_cuda`).
+  - Tools accept `--manifest-id`/`--manifest-store`; test plans and records reference the ID for portability.
+  - Idempotency keys naturally derive from template/module versions, base digest, and target platform.
+  - Considerations & mitigations: the version matrix can grow quickly and drift if versions change ad‑hoc. Address by curating supported sets, pinning manifest entries, and using compatibility records as an allowlist/cache.
 
 - **Configuration-first, read-only control plane** – Products/pipelines/artifacts live as JSON and are served read‑only via FastAPI for clarity and auditability.
-  - Tradeoffs: no runtime edits; potential drift between JSON and on-disk modules; not a source of truth for execution state.
-  - Mitigations: keep JSON in VCS, add write APIs + validation later, or back with a DB when multi-user edits are needed.
+  - JSON lives under `control_plane/data/`; the API simply reflects what’s on disk for transparency in this prototype.
+  - Write paths (scheduling, promotions) can be added later with validation and a backing DB to avoid drift.
+  - Records and evidence are treated as data plane concerns; the control plane links to them and summarizes rollups.
+  - Considerations & mitigations: no runtime edits and potential drift between JSON and on‑disk modules; not a system‑of‑record for execution state. Address by keeping JSON in VCS, introducing write APIs with validation, or backing with a DB for multi‑user edits.
 
 - **Evidence-backed compatibility records** – Every build/test writes a minimal verdict plus a pointer to evidence.
-  - Tradeoffs: adds a little I/O; records can go stale as bases/drivers/security posture change.
-  - Mitigations: include base digests and test hashes (already done), and apply expiry/policy checks before reuse.
+  - Records capture `manifest_id`, module versions, base digest, arch, test hash, result, and pointers to evidence/SBOM.
+  - Failures emit `error-<build_id>.json` with a log tail to accelerate triage without opening full logs.
+  - Results are idempotent and auditable; re‑runs with identical inputs can be short‑circuited.
+  - Considerations & mitigations: adds some I/O and records can go stale as bases/drivers/security posture change. Address by recording base digests and test hashes and enforcing expiry/policy checks before reuse.
 
 - **Platform-aware build scripts** – Scripts honor `--platform` so cross-arch hosts (e.g., arm64 Macs) produce usable amd64 images.
-  - Tradeoffs: cross-building can miss runtime-only issues; GPU validation won’t happen on non‑GPU hosts.
-  - Mitigations: run smoke/integration tests on target architectures in CI; run GPU tests on GPU runners.
+  - Smoke tests inherit platform via `DOCKER_DEFAULT_PLATFORM` to avoid runtime mismatches during `docker run`.
+  - Buildx + registry cache lets pools (amd64/arm64) share intermediate layers where possible.
+  - Per‑arch queues/executors (see scale.md) keep placement simple while maximizing cache hits.
+  - Considerations & mitigations: cross‑building can miss runtime‑only issues and GPU validation won’t happen on non‑GPU hosts. Address by running smoke/integration tests on target architectures and executing GPU tests on GPU runners.
 
 - **Host GPU dependency isolation** – CUDA lives in the `core` layer; hosts install the NVIDIA toolkit to expose GPUs.
-  - Tradeoffs: bigger images and possible driver/CUDA version skew at runtime.
-  - Mitigations: pin CUDA versions, document minimum driver/toolkit, and validate on GPU hosts.
+  - GPU variant (`llm_factory_cuda`) swaps Core in the manifest; executors in a GPU pool pick up those jobs.
+  - Keep the base image consistent (e.g., Ubuntu 22.04) to simplify layer reuse across CPU/GPU stacks.
+  - Validate driver/runtime pairs on GPU hosts; gate promotion on GPU smoke tests.
+  - Considerations & mitigations: bigger images and possible driver/CUDA version skew at runtime. Address by pinning CUDA versions, documenting minimum driver/toolkit, and validating on GPU hosts.
+
+## High‑Level Diagram
+
+```mermaid
+flowchart LR
+  classDef cp fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1,stroke-width:2px
+  classDef q  fill:#FFF3E0,stroke:#FB8C00,color:#E65100,stroke-width:2px
+  classDef ex fill:#E8F5E9,stroke:#43A047,color:#1B5E20,stroke-width:2px
+  classDef st fill:#F3E5F5,stroke:#8E24AA,color:#4A148C,stroke-width:2px
+
+  CP[Control Plane]:::cp
+  Q[Queues]:::q
+  EX[Executors]:::ex
+  ST[Shared Stores]:::st
+
+  CP -- manifests/plans --> Q
+  Q  -- work --> EX
+  EX -- images + records + evidence --> ST
+  ST -- summaries --> CP
+```
 
 ## TL;DR
 
@@ -49,9 +93,9 @@ factory/
 ├── compatibility/              # Compatibility records and documentation
 ├── control_plane/              # FastAPI control plane & tests
 ├── dockerfiles/                # Rendered Dockerfile + versioned templates
-├── manifests/                  # Manifests mapping templates/modules to versions
-├── control_plane/data/modules/ # Layer fragments (security/core/light/model_serve_mock)
-├── control_plane/data/schemas/ # JSON schemas (e.g., compatibility record)
+├── modules/                    # Layer fragments (security/core/light/model_serve_mock)
+├── control_plane/data/manifest.json   # Consolidated manifest store (keys → manifest definitions)
+├── schemas/                    # JSON schemas (e.g., compatibility record)
 ├── tools/                      # Stitching and smoke-test scripts
 └── README.md                   # This file
 ```
@@ -60,10 +104,10 @@ factory/
 
 | Layer     | Purpose                                   | Key files |
 |-----------|-------------------------------------------|-----------|
-| security  | OS patching & security packages           | `control_plane/data/modules/security/<version>/`
-| core      | Stable runtimes & base tooling            | `control_plane/data/modules/core/<version>/`
-| light     | Fast-moving libraries (e.g., transformers)| `control_plane/data/modules/light/<version>/`
-| model_serve_mock | Mock model-serving layer & entrypoint | `control_plane/data/modules/model_serve_mock/<version>/`
+| security  | OS patching & security packages           | `modules/security/<version>/`
+| core      | Stable runtimes & base tooling            | `modules/core/<version>/`
+| light     | Fast-moving libraries (e.g., transformers)| `modules/light/<version>/`
+| model_serve_mock | Mock model-serving layer & entrypoint | `modules/model_serve_mock/<version>/`
 
 Each module version declares metadata in `module.json` (including an `order`) and supplies a `Dockerfile.fragment`. The Stitch tool reads a manifest from the consolidated store (`control_plane/data/manifest.json`) via its ID (e.g. `llm_factory`) to select a template + fragment versions, injects those fragments into the template, and writes `dockerfiles/Dockerfile.rendered`.
 
@@ -74,7 +118,7 @@ python3 tools/stitch.py --manifest-id core_smoke
 docker build -f dockerfiles/Dockerfile.core_smoke -t llm-factory:core-smoke .
 ```
 
-The template at `dockerfiles/templates/core_smoke/0.1.0/Dockerfile.tpl` only exposes the `#--MODULE:core--#` marker, so the rendered Dockerfile contains just the `core` fragment (`control_plane/data/modules/core/0.3.0/`). Swap the manifest's module version to exercise other iterations, or clone the template with different markers if you want to isolate additional modules.
+The template at `dockerfiles/templates/core_smoke/0.1.0/Dockerfile.tpl` only exposes the `#--MODULE:core--#` marker, so the rendered Dockerfile contains just the `core` fragment (`modules/core/0.3.0/`). Swap the manifest's module version to exercise other iterations, or clone the template with different markers if you want to isolate additional modules.
 
 Prefer a single command? `./tools/test-fragment.sh` wraps the render/build/run flow (defaults target the core smoke manifest) and lets you override the manifest, output, image tag, or the runtime smoke command.
 
@@ -135,6 +179,11 @@ docker buildx bake -f build/bake.hcl
   ```
 
 `buildx bake` reads `build/bake.hcl` and can target multiple platforms in one run (amd64/arm64) while reusing registry/local caches. The factory scripts stick to single-platform builds; Bake is the quickest way to fan out builds once you have BuildKit drivers and cache storage configured.
+
+## Design Docs
+
+- Scaling plan: see [scale.md](scale.md)
+- Caching strategy: see [caching_layers.md](caching_layers.md)
 
 ## Control Plane Integration
 

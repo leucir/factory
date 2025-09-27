@@ -95,3 +95,6 @@ Earlier steps may still be reused even if later steps change (e.g., App fragment
 
 This document reflects a prototype’s direction. Expect the strategy to evolve as we add more executors, GPU variants, and CI integration.
 
+## See Also
+
+- Scale-out architecture and queues/executors: [scale.md](scale.md)

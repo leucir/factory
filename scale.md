@@ -16,29 +16,33 @@ This document proposes a scalable architecture for the Factory to render, build,
 
 ```mermaid
 flowchart LR
+  classDef cp fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1,stroke-width:2px
+  classDef q  fill:#FFF3E0,stroke:#FB8C00,color:#E65100,stroke-width:2px
+  classDef ex fill:#E8F5E9,stroke:#43A047,color:#1B5E20,stroke-width:2px
+  classDef st fill:#F3E5F5,stroke:#8E24AA,color:#4A148C,stroke-width:2px
   subgraph CP[Control Plane]
-    API[Read-only API]
-    MStore[(Manifest Store)]
-    Plans[(Test Plans)]
+    API[Read-only API]:::cp
+    MStore[(Manifest Store)]:::cp
+    Plans[(Test Plans)]:::cp
   end
 
   subgraph Q[Queues / Topics]
-    WQ[Work Queue per cluster/pool]
-    RQ[Results Queue]
-    DLQ[Dead Letter Queue]
+    WQ[Work Queue per cluster/pool]:::q
+    RQ[Results Queue]:::q
+    DLQ[Dead Letter Queue]:::q
   end
 
   subgraph Pools[Executor Pools]
-    A[Pool A: linux/amd64]
-    B[Pool B: linux/arm64]
-    G[Pool G: linux/amd64+GPU]
+    A[Pool A: linux/amd64]:::ex
+    B[Pool B: linux/arm64]:::ex
+    G[Pool G: linux/amd64+GPU]:::ex
   end
 
   subgraph Shared[Shared Services]
-    OCI[(OCI Registry + BuildKit Cache)]
-    EV[(Evidence/SBOM/Object Storage)]
-    CR[(Compatibility Records Store)]
-    OBS[(Metrics/Logs/Tracing)]
+    OCI[(OCI Registry + BuildKit Cache)]:::st
+    EV[(Evidence/SBOM/Object Storage)]:::st
+    CR[(Compatibility Records Store)]:::st
+    OBS[(Metrics/Logs/Tracing)]:::st
   end
 
   API -- enqueue work (manifest_id + matrix) --> WQ
@@ -158,3 +162,6 @@ sequenceDiagram
 - Work item derives from manifest store key; our current tools already accept `--manifest-id` and `--manifest-store`.
 - Records include `manifest_id` and evidence pointers, aligning with the proposed results format.
 
+## See Also
+
+- Caching approach and examples: [caching_layers.md](caching_layers.md)
