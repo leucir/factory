@@ -1,5 +1,7 @@
 # Model Serve Mock
 
+This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
+
 This directory contains a mock implementation of the model inference server that will eventually be running the actual model serving. It provides OpenAI-compatible endpoints for testing and development purposes.
 
 ## Purpose

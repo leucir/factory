@@ -1,5 +1,7 @@
 # Factory - Layered Image Prototype
 
+This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
+
 A prototype factory for building Docker images from composable layers. The goal is to incrementally assemble, test, and cache reusable modules so future builds are faster and safer.
 
 ## Architecture Principles

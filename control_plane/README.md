@@ -1,5 +1,7 @@
 # Factory Control Plane - Layered Image Prototype
 
+This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
+
 The control plane catalogs products, pipelines, and compatibility metadata for the layered image factory.
 
 ## Core Entities
