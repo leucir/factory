@@ -21,6 +21,10 @@ from api.artifacts import router as artifacts_router
 from api.pipelines import router as pipelines_router
 from api.compatibility import router as compatibility_router
 from api.explore import router as explore_router
+from api.manifests import router as manifests_router
+from api.schemas import router as schemas_router
+from api.test_plans import router as test_plans_router
+from api.modules import router as modules_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -54,7 +58,11 @@ async def root():
         "endpoints": {
             "products": "/products",
             "artifacts": "/artifacts",
-            "pipelines": "/pipelines"
+            "pipelines": "/pipelines",
+            "manifests": "/manifests",
+            "schemas": "/schemas",
+            "test-plans": "/test-plans",
+            "modules": "/modules"
         }
     }
 
@@ -64,6 +72,10 @@ app.include_router(artifacts_router)
 app.include_router(pipelines_router)
 app.include_router(compatibility_router)
 app.include_router(explore_router)
+app.include_router(manifests_router)
+app.include_router(schemas_router)
+app.include_router(test_plans_router)
+app.include_router(modules_router)
 
 # Health check endpoint
 @app.get("/health")
