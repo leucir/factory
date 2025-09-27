@@ -1,7 +1,28 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-python-multipart==0.0.6
-httpx==0.25.2
-pytest==7.4.3
-pytest-asyncio==0.21.1
+# Core FastAPI dependencies
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# HTTP client for API calls and testing
+httpx>=0.25.2
+
+# Testing dependencies
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+
+# Additional dependencies for scripts and tools
+# (These are standard library modules, no additional packages needed)
+# - json (standard library)
+# - pathlib (standard library) 
+# - datetime (standard library)
+# - tempfile (standard library)
+# - subprocess (standard library)
+# - argparse (standard library)
+# - shlex (standard library)
+# - shutil (standard library)
+# - itertools (standard library)
+# - uuid (standard library)
+# - hashlib (standard library)
+# - os (standard library)
+# - sys (standard library)
