@@ -1,0 +1,2 @@
+# This requirement intentionally refers to a package that does not exist so pip fails.
+not-a-real-wheel-for-tests==0.0.0

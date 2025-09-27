@@ -1,0 +1,15 @@
+# Model serve mock module: install dependencies and copy the mock service
+COPY model_serve_mock/requirements-app.txt /tmp/requirements-app.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install -r /tmp/requirements-app.txt && \
+    rm /tmp/requirements-app.txt
+
+COPY model_serve_mock /opt/model_serve_mock/model_serve_mock
+RUN chown -R llmuser:llmuser /opt/model_serve_mock
+
+ENV PYTHONPATH="/opt/model_serve_mock:$PYTHONPATH"
+USER llmuser
+WORKDIR /opt/model_serve_mock
+
+EXPOSE 8080
+ENTRYPOINT ["uvicorn", "model_serve_mock.main:app", "--host", "0.0.0.0", "--port", "8080"]

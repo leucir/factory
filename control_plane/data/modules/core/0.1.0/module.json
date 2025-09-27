@@ -1,0 +1,6 @@
+{
+  "name": "core",
+  "version": "0.1.0",
+  "order": 20,
+  "description": "Stable runtime dependencies and base tooling"
+}

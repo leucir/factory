@@ -1,0 +1,6 @@
+{
+  "name": "core",
+  "version": "0.2.0",
+  "order": 20,
+  "description": "Core runtime with CUDA support and developer tooling"
+}

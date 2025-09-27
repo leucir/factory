@@ -1,0 +1,11 @@
+# Security module: apply OS updates and install security tooling
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        apt-transport-https \
+        ca-certificates \
+        curl \
+        gnupg2 \
+        sudo && \
+    rm -rf /var/lib/apt/lists/*

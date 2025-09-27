@@ -1,0 +1,6 @@
+{
+  "name": "core",
+  "version": "0.3.0",
+  "order": 20,
+  "description": "Experimental core runtime with dependency updates"
+}

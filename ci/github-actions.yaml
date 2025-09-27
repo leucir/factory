@@ -1,0 +1,62 @@
+name: image-factory
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      EVIDENCE_FILE: control_plane/data/compatibility/evidence/${{ github.run_id }}-${{ github.run_attempt }}.log
+      SBOM_FILE: control_plane/data/compatibility/sbom/${{ github.run_id }}-${{ github.run_attempt }}.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Render layered Dockerfile
+        run: |
+          python tools/stitch.py --manifest-id llm_factory
+
+      - name: Build image
+        run: |
+          docker build -f dockerfiles/Dockerfile.rendered -t llm-factory:ci .
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: |
+          mkdir -p control_plane/data/compatibility/sbom
+          ./tools/generate-sbom.sh llm-factory:ci "${SBOM_FILE}"
+
+      - name: Smoke test image
+        run: |
+          set -euo pipefail
+          mkdir -p control_plane/data/compatibility/evidence
+          ./tools/test-runner.sh llm-factory:ci 2>&1 | tee "${EVIDENCE_FILE}"
+
+      - name: Write compatibility record
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p control_plane/data/compatibility/evidence
+          touch "${EVIDENCE_FILE}"
+          STATUS=fail
+          if [ "${{ job.status }}" = "success" ]; then STATUS=pass; fi
+          python tools/write-compatibility-record.py \
+            --manifest-id llm_factory \
+            --image llm-factory:ci \
+            --status "$STATUS" \
+            --notes "GitHub Actions ${{ github.sha }}" \
+            --build-id "$BUILD_ID" \
+            --evidence-path "${EVIDENCE_FILE}" \
+            --sbom-path "${SBOM_FILE}"

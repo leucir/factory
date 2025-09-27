@@ -1,0 +1,44 @@
+{
+    "llm_factory": {
+        "name": "llm_factory",
+        "description": "Layered LLM inference image built from modular fragments",
+        "docker_image_name": "llm-factory",
+        "docker_tag": "dev",
+        "metadata": {
+            "manifest_id": "llm_factory",
+            "manifest_store": "control_plane/data/manifest.json",
+            "template": {
+                "id": "llm_factory",
+                "version": "0.1.0",
+                "path": "dockerfiles/templates/llm_factory/0.1.0/Dockerfile.tpl"
+            },
+            "rendered_dockerfile": "dockerfiles/Dockerfile.rendered",
+            "stitch_script": "tools/stitch.py",
+            "build_platform": "linux/amd64",
+            "model_serve_mock_source": "model_serve_mock",
+            "compatibility_schema": "control_plane/data/schemas/compatibility.schema.json",
+            "compatibility_records": "control_plane/data/compatibility/records"
+        }
+    },
+    "llm_factory_cuda": {
+        "name": "llm_factory_cuda",
+        "description": "Layered LLM inference image with CUDA runtime in the core layer",
+        "docker_image_name": "llm-factory-cuda",
+        "docker_tag": "dev",
+        "metadata": {
+            "manifest_id": "llm_factory_cuda",
+            "manifest_store": "control_plane/data/manifest.json",
+            "template": {
+                "id": "llm_factory",
+                "version": "0.1.0",
+                "path": "dockerfiles/templates/llm_factory/0.1.0/Dockerfile.tpl"
+            },
+            "rendered_dockerfile": "dockerfiles/Dockerfile.rendered",
+            "stitch_script": "tools/stitch.py",
+            "build_platform": "linux/amd64",
+            "model_serve_mock_source": "model_serve_mock",
+            "compatibility_schema": "control_plane/data/schemas/compatibility.schema.json",
+            "compatibility_records": "control_plane/data/compatibility/records"
+        }
+    }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "model_serve_mock",
+  "version": "0.1.0",
+  "order": 40,
+  "description": "Application layer packaging the LLM inference service"
+}

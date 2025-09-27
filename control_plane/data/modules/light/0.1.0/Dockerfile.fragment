@@ -1,0 +1,5 @@
+# Light module: install frequently changing libraries
+COPY control_plane/data/modules/light/0.1.0/requirements.txt /tmp/requirements-light.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install -r /tmp/requirements-light.txt && \
+    rm /tmp/requirements-light.txt

@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://factory.example.com/control_plane/data/schemas/compatibility.schema.json",
+  "title": "CompatibilityRecord",
+  "description": "Record of a build/test compatibility result for a layered image.",
+  "type": "object",
+  "required": [
+    "build_id",
+    "template_id",
+    "template_version",
+    "base_digest",
+    "security_version",
+    "core_version",
+    "light_version",
+    "model_serve_mock_version",
+    "arch",
+    "test_suite_hash",
+    "result"
+  ],
+  "properties": {
+    "build_id": {
+      "type": "string",
+      "description": "Unique identifier for the build execution."
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Identifier of the Dockerfile template used."
+    },
+    "template_version": {
+      "type": "string",
+      "description": "Version of the Dockerfile template."
+    },
+    "base_digest": {
+      "type": "string",
+      "description": "Digest of the base image (e.g., sha256:...)."
+    },
+    "manifest_id": {
+      "type": "string",
+      "description": "Identifier of the manifest used from the manifest store."
+    },
+    "security_version": {
+      "type": "string",
+      "description": "Version identifier for the security module applied."
+    },
+    "core_version": {
+      "type": "string",
+      "description": "Version identifier for the core module."
+    },
+    "light_version": {
+      "type": "string",
+      "description": "Version identifier for the light module."
+    },
+    "model_serve_mock_version": {
+      "type": "string",
+      "description": "Version identifier for the model_serve_mock module."
+    },
+    "arch": {
+      "type": "string",
+      "description": "Target CPU architecture (e.g., linux/amd64)."
+    },
+    "test_suite_hash": {
+      "type": "string",
+      "description": "Deterministic hash of the test suite definition."
+    },
+    "result": {
+      "type": "object",
+      "required": ["status", "tested_at"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail"],
+          "description": "Outcome of the compatibility test run."
+        },
+        "image_digest": {
+          "type": "string",
+          "description": "Digest of the produced image, if available."
+        },
+        "tested_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the test suite was executed."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional free-form notes about the execution."
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional context for the compatibility result.",
+      "properties": {
+        "manifest": {
+          "type": "string"
+        },
+        "product_id": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "evidence_path": {
+          "type": "string",
+          "description": "Path or URI to evidence collected during testing."
+        },
+        "sbom_path": {
+          "type": "string",
+          "description": "Path or URI to the SBOM captured for the image."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

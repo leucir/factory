@@ -1,0 +1,6 @@
+{
+  "name": "light",
+  "version": "0.2.0",
+  "order": 30,
+  "description": "Intentionally incompatible fast-moving dependencies for testing"
+}

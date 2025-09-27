@@ -1,0 +1,7 @@
+{
+  "liquid_model": {
+    "name": "liquid_model",
+    "description": "Liquid model",
+    "source_url": "https://huggingface.co/LiquidAI/LFM2-1.2B"
+  }
+}

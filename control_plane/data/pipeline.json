@@ -1,0 +1,42 @@
+{
+  "layered_build_pipeline": {
+    "name": "Layered Build Pipeline",
+    "pipeline_type": "complex",
+    "product_id": "llm_factory",
+    "status": "ready",
+    "steps": [
+      "render_dockerfile",
+      "build_image",
+      "run_smoke_tests",
+      "record_compatibility"
+    ],
+    "artifacts": ["llm_factory_image"],
+      "metadata": {
+      "manifest_id": "llm_factory",
+      "manifest_store": "control_plane/data/manifest.json",
+      "build_tool": "docker build",
+      "test_runner": "tools/test-runner.sh",
+      "bake_file": "build/bake.hcl"
+    }
+  },
+  "layered_build_pipeline_cuda": {
+    "name": "Layered Build Pipeline (CUDA)",
+    "pipeline_type": "complex",
+    "product_id": "llm_factory_cuda",
+    "status": "ready",
+    "steps": [
+      "render_dockerfile",
+      "build_image",
+      "run_smoke_tests",
+      "record_compatibility"
+    ],
+    "artifacts": ["llm_factory_cuda_image"],
+      "metadata": {
+      "manifest_id": "llm_factory_cuda",
+      "manifest_store": "control_plane/data/manifest.json",
+      "build_tool": "docker build",
+      "test_runner": "tools/test-runner.sh",
+      "bake_file": "build/bake.hcl"
+    }
+  }
+}

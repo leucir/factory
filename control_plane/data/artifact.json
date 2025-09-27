@@ -1,0 +1,20 @@
+{
+  "llm_factory_image": {
+    "name": "llm_factory_image",
+    "docker_image_name": "llm-factory",
+    "docker_tag": "dev",
+    "pipeline_id": "layered_build_pipeline",
+    "metadata": {
+      "description": "Rendered image produced by the layered build pipeline"
+    }
+  },
+  "llm_factory_cuda_image": {
+    "name": "llm_factory_cuda_image",
+    "docker_image_name": "llm-factory-cuda",
+    "docker_tag": "dev",
+    "pipeline_id": "layered_build_pipeline_cuda",
+    "metadata": {
+      "description": "CUDA-enabled image produced by the layered build pipeline"
+    }
+  }
+}

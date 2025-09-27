@@ -1,0 +1,39 @@
+{
+  "llm_factory": {
+    "template": {
+      "id": "llm_factory",
+      "version": "0.1.0"
+    },
+    "modules": [
+      {"name": "security", "version": "0.1.0"},
+      {"name": "core", "version": "0.1.0"},
+      {"name": "light", "version": "0.1.0"},
+      {"name": "model_serve_mock", "version": "0.1.0"}
+    ],
+    "base_image": "ubuntu:22.04",
+    "output": "dockerfiles/Dockerfile.rendered"
+  },
+  "llm_factory_cuda": {
+    "template": {
+      "id": "llm_factory",
+      "version": "0.1.0"
+    },
+    "modules": [
+      {"name": "security", "version": "0.1.0"},
+      {"name": "core", "version": "0.2.0"},
+      {"name": "light", "version": "0.1.0"},
+      {"name": "model_serve_mock", "version": "0.1.0"}
+    ],
+    "base_image": "ubuntu:22.04",
+    "output": "dockerfiles/Dockerfile.rendered"
+  },
+  "core_smoke": {
+    "template": {
+      "path": "dockerfiles/templates/core_smoke/0.1.0/Dockerfile.tpl"
+    },
+    "modules": [
+      {"name": "core", "version": "0.3.0"}
+    ],
+    "output": "dockerfiles/Dockerfile.core_smoke"
+  }
+}

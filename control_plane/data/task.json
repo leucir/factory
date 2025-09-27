@@ -1,0 +1,57 @@
+{
+    "steps": [
+      {
+        "step": "checkout_code",
+        "description": "Retrieve the latest source code from the Git repository."
+      },
+      {
+        "step": "install_dependencies",
+        "description": "Set up environment and install project dependencies for testing and building."
+      },
+      {
+        "step": "run_static_analysis",
+        "description": "Run linting, type checks, and static security analysis (SAST) on the source code."
+      },
+      {
+        "step": "run_unit_tests",
+        "description": "Execute unit and integration tests to validate functionality."
+      },
+      {
+        "step": "scan_for_secrets",
+        "description": "Check the repository for accidentally committed secrets or credentials."
+      },
+      {
+        "step": "generate_sbom",
+        "description": "Generate a software bill of materials (SBOM) for dependency visibility and compliance."
+      },
+      {
+        "step": "build_docker_image",
+        "description": "Build the Docker image using a Dockerfile (multi-stage recommended)."
+      },
+      {
+        "step": "scan_docker_image",
+        "description": "Scan the built image for vulnerabilities before pushing it to a registry."
+      },
+      {
+        "step": "sign_image",
+        "description": "Digitally sign the Docker image for provenance and integrity verification."
+      },
+      {
+        "step": "push_image_to_registry",
+        "description": "Push the signed Docker image to a container registry (e.g., ECR, GCR, Docker Hub)."
+      },
+      {
+        "step": "run_smoke_tests",
+        "description": "Deploy the image in a temporary environment and verify basic functionality."
+      },
+      {
+        "step": "deploy_to_staging",
+        "description": "Deploy the image to a staging environment for further testing."
+      },
+      {
+        "step": "approve_and_promote",
+        "description": "After validation, promote the same image to production."
+      }
+    ]
+  }
+  

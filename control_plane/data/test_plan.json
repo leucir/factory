@@ -1,0 +1,30 @@
+{
+  "baseline_core_light": {
+    "name": "Baseline Core/Light Matrix",
+    "description": "Explore matrix across core and light module versions for llm_factory",
+    "product_id": "llm_factory",
+    "manifest_id": "llm_factory",
+    "fixed": {
+      "security": "0.1.0",
+      "model_serve_mock": "0.1.0"
+    },
+    "matrix": {
+      "core": ["0.1.0", "0.2.0"],
+      "light": ["0.1.0"]
+    }
+  },
+  "incompatible_core_light": {
+    "name": "Incompatible Core/Light Matrix",
+    "description": "Includes intentionally incompatible core/light versions to validate failure handling",
+    "product_id": "llm_factory",
+    "manifest_id": "llm_factory",
+    "fixed": {
+      "security": "0.1.0",
+      "model_serve_mock": "0.1.0"
+    },
+    "matrix": {
+      "core": ["0.1.0", "0.3.0"],
+      "light": ["0.1.0", "0.2.0"]
+    }
+  }
+}
