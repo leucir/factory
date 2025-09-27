@@ -21,7 +21,7 @@ flowchart LR
   end
 
   subgraph Q[Queues / Topics]
-    WQ[Work Queue (per cluster/pool)]
+    WQ[Work Queue per cluster/pool]
     RQ[Results Queue]
     DLQ[Dead Letter Queue]
   end
