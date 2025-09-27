@@ -45,7 +45,7 @@ flowchart LR
     OBS[(Metrics/Logs/Tracing)]:::st
   end
 
-  API -- enqueue work (manifest_id + axes) --> WQ
+  API -- enqueue work (manifest_id + fragments) --> WQ
   WQ -- pull job --> AMD64 & ARM64 & GPU
   AMD64 & ARM64 & GPU -- push layers/images --> OCI
   AMD64 & ARM64 & GPU -- write evidence/SBOM --> EV
@@ -55,30 +55,6 @@ flowchart LR
   AMD64 & ARM64 & GPU -- on permanent failure --> DLQ
   OBS --- API & WQ & AMD64 & ARM64 & GPU
 ```
-
-## Work Model
-
-Work items are derived from:
-
-- `manifest_id` (e.g., `llm_factory`, `llm_factory_cuda`, `core_smoke`)
-- Optional matrix axes (module version overrides per plan)
-- Target platform(s) (e.g., `linux/amd64`, `linux/arm64`, `gpu=required`)
-- Priority, deadline, and concurrency budget
-- Idempotency key: hash of manifest template_id, template_version, module versions, base image digest, and target arch
-
-Suggested work item schema (logical):
-
-- manifest: { id, store_path }
-- axes: { core, light, security, ... }
-- platform: { os, arch, accelerator? }
-- notes/labels: { plan_id, owner, priority }
-- idempotency_key
-
-Results schema references the existing compatibility record (augmented with `manifest_id`), plus:
-
-- evidence_path, sbom_path (object storage URIs)
-- image reference(s) built
-- executor metadata (host pool, builder version)
 
 ## Scheduling and Queues
 
@@ -151,7 +127,7 @@ sequenceDiagram
   participant RQ as Results Queue
 
   Client->>ControlPlane: Request build/test (plan or manifest_id)
-  ControlPlane->>WQ: Enqueue WorkItem(manifest_id, axes, platform)
+  ControlPlane->>WQ: Enqueue WorkItem(manifest_id, fragments, platform)
   Exec->>WQ: Pull WorkItem
   Exec->>ControlPlane: Get manifest by id
   Exec->>Exec: Render (stitch template + fragments)
@@ -169,7 +145,7 @@ sequenceDiagram
 {
   "work_item": {
     "manifest_id": "llm_factory",
-    "axes": {"core": "0.1.0", "light": "0.1.0"},
+    "fragments": {"core": "0.1.0", "light": "0.1.0"},
     "platform": {"os": "linux", "arch": "amd64"},
     "priority": "normal",
     "idempotency_key": "<sha256 of manifest/template/modules/base/arch>"
@@ -218,20 +194,7 @@ sequenceDiagram
 - Evidence/SBOM: time‑based retention (e.g., 90 days) with exceptions for releases
 - Records: keep indefinitely or mirror to a database with lifecycle policies
 
-## Invalidations and Rebuilds
-
-- Invalidate cached results when:
-  - Base image digest changes
-  - Manifest entry (template/module version) changes
-  - Test suite hash changes
-- Keep a small policy engine in the control plane to decide when to enqueue work vs. reuse existing records.
-
-## Observability
-
-- Per-queue metrics: depth, throughput, age, retries.
-- Executor metrics: build duration, cache hit/miss, test duration, success rate.
-- Artifact metrics: image size, layer count, SBOM generation time.
-- Tracing across render→build→test stages; log correlation keys include build_id.
+<!-- Invalidation and observability covered above in quick-scan and first dashboards sections. -->
 
 ### Critical Observability for Ephemeral Executors
 
