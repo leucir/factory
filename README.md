@@ -45,6 +45,21 @@ A prototype factory for building Docker images from composable layers. The goal 
   - On GPU hosts, install the NVIDIA Container Toolkit once: `sudo ./tools/install-nvidia-container-toolkit.sh`.
   - Why this design? See [Architecture Principles](#architecture-principles). For deeper context: [scale.md](scale.md) and [caching_layers.md](caching_layers.md).
 
+## Setup (Python + Tools)
+
+- Requirements
+  - Python 3.10+ and pip
+  - Docker (BuildKit/Buildx enabled by default in recent Docker Desktop)
+  - Optional: Syft for SBOMs (`brew install syft` or see Anchore docs)
+
+- Install Python dependencies (recommended virtualenv):
+  - macOS/Linux
+    - `python3 -m venv .venv && source .venv/bin/activate`
+    - `pip install -r control_plane/requirements.txt`
+  - Windows (PowerShell)
+    - `python -m venv .venv; .\.venv\Scripts\Activate.ps1`
+    - `pip install -r control_plane/requirements.txt`
+
 ## Architecture Principles
 
 - **Container‑as‑a‑product**
@@ -235,20 +250,32 @@ Compatibility records persist the outcome of each build/test cycle (base digest 
 
 ## Typical Workflow
 
-```
-python3 tools/stitch.py --manifest-id llm_factory
-docker build -f dockerfiles/Dockerfile.rendered -t llm-factory:dev .
-./tools/test-runner.sh llm-factory:dev
-```
+- Step 1 — Render the Dockerfile from a manifest
+  - Reads `llm_factory` from the consolidated store and stitches the selected fragments into `dockerfiles/Dockerfile.rendered`.
+  - Command:
+    - `python3 tools/stitch.py --manifest-id llm_factory`
 
-To mirror the CI pipeline locally, run:
+- Step 2 — Build the image (uses BuildKit cache when available)
+  - Builds the rendered Dockerfile into a local image tag; add `--platform` if you need a specific arch.
+  - Command:
+    - `docker build -f dockerfiles/Dockerfile.rendered -t llm-factory:dev .`
+
+- Step 3 — Smoke‑test the image
+  - Starts a container, checks health, and exercises the sample endpoint; exits non‑zero on failure.
+  - Command:
+    - `./tools/test-runner.sh llm-factory:dev`
+
+- Outputs and evidence
+  - When using the helper scripts (`run-ci-local.sh` / API flow), evidence logs, SBOMs, and records are written under `control_plane/data/compatibility/`.
+
+To mirror a full render→build→test cycle via a single command, run:
 
 ```
 ./tools/run-ci-local.sh                # defaults to product llm_factory
 ./tools/run-ci-local.sh llm_factory_cuda
 ```
 
-To execute the same flow via the control-plane API metadata:
+To execute the same flow driven by the control‑plane API metadata (pipeline optional):
 
 ```
 ./tools/run-ci-local-api.sh llm_factory                 # pipeline metadata optional; falls back to product defaults
@@ -271,6 +298,8 @@ docker buildx bake -f build/bake.hcl
 
 - Empirically check the host Docker layer limit (creates throwaway images until a build fails):
   ```
+  #The --max arguments is to test the script. Once removed, the script will try to add layers until breaks
+  
   ./tools/check-layer-limit.sh --max 150
   ```
 
