@@ -111,20 +111,30 @@ The Factory prototype uses a hierarchical data structure where each entity has s
 - **Evidence** (`control_plane/data/compatibility/evidence/`): Build logs and test outputs
 - **SBOMs** (`control_plane/data/compatibility/sbom/`): Software Bill of Materials for security/compliance
 
-### Data Structure ER Diagram
+### Data Structure Class Diagram
 
 ```mermaid
-erDiagram
-    Product ||--|| Manifest : "references"
-    Pipeline ||--o| Product : "optional"
-    Manifest ||--o{ Module : "contains"
-    TestPlan ||--|| Product : "tests"
-    TestPlan ||--|| Manifest : "uses"
-    CompatibilityRecord ||--|| Product : "records"
-    CompatibilityRecord ||--|| Manifest : "references"
-    CompatibilityRecord ||--o| Evidence : "points to"
-    CompatibilityRecord ||--o| SBOM : "points to"
-    Schema ||--o{ CompatibilityRecord : "validates"
+classDiagram
+    class Product
+    class Pipeline
+    class Manifest
+    class Module
+    class TestPlan
+    class CompatibilityRecord
+    class Schema
+    class Evidence
+    class SBOM
+
+    Product ||--|| Manifest
+    Pipeline ||--o| Product
+    Manifest ||--o{ Module
+    TestPlan ||--|| Product
+    TestPlan ||--|| Manifest
+    CompatibilityRecord ||--|| Product
+    CompatibilityRecord ||--|| Manifest
+    CompatibilityRecord ||--o| Evidence
+    CompatibilityRecord ||--o| SBOM
+    Schema ||--o{ CompatibilityRecord
 ```
 
 ### Data Flow
