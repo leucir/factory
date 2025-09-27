@@ -115,26 +115,27 @@ The Factory prototype uses a hierarchical data structure where each entity has s
 
 ```mermaid
 classDiagram
-    class Product
-    class Pipeline
-    class Manifest
-    class Module
-    class TestPlan
-    class CompatibilityRecord
-    class Schema
-    class Evidence
-    class SBOM
+  class Product
+  class Pipeline
+  class Manifest
+  class Module
+  class TestPlan
+  class CompatibilityRecord
+  class Schema
+  class Evidence
+  class SBOM
 
-    Product ||--|| Manifest
-    Pipeline ||--o| Product
-    Manifest ||--o{ Module
-    TestPlan ||--|| Product
-    TestPlan ||--|| Manifest
-    CompatibilityRecord ||--|| Product
-    CompatibilityRecord ||--|| Manifest
-    CompatibilityRecord ||--o| Evidence
-    CompatibilityRecord ||--o| SBOM
-    Schema ||--o{ CompatibilityRecord
+  Product --> Manifest : references
+  %% Optional: Pipeline to Product relationship
+  Pipeline --> Product : builds
+  Manifest o-- Module : contains
+  TestPlan --> Product : tests
+  TestPlan --> Manifest : uses
+  CompatibilityRecord --> Product : records
+  CompatibilityRecord --> Manifest : references
+  CompatibilityRecord --> Evidence : points to
+  CompatibilityRecord --> SBOM : points to
+  Schema ..> CompatibilityRecord : validates
 ```
 
 ### Data Flow
