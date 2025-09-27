@@ -33,9 +33,9 @@ flowchart LR
   end
 
   subgraph Pools[Executor Pools]
-    A[Pool A: linux/amd64]:::ex
-    B[Pool B: linux/arm64]:::ex
-    G[Pool G: linux/amd64+GPU]:::ex
+    AMD64[Pool: linux/amd64]:::ex
+    ARM64[Pool: linux/arm64]:::ex
+    GPU[Pool: linux/amd64 + GPU]:::ex
   end
 
   subgraph Shared[Shared Services]
@@ -45,15 +45,15 @@ flowchart LR
     OBS[(Metrics/Logs/Tracing)]:::st
   end
 
-  API -- enqueue work (manifest_id + matrix) --> WQ
-  WQ -- pull job --> A & B & G
-  A & B & G -- push layers/images --> OCI
-  A & B & G -- write evidence/SBOM --> EV
-  A & B & G -- write records --> CR
-  A & B & G -- publish result --> RQ
+  API -- enqueue work (manifest_id + axes) --> WQ
+  WQ -- pull job --> AMD64 & ARM64 & GPU
+  AMD64 & ARM64 & GPU -- push layers/images --> OCI
+  AMD64 & ARM64 & GPU -- write evidence/SBOM --> EV
+  AMD64 & ARM64 & GPU -- write records --> CR
+  AMD64 & ARM64 & GPU -- publish result --> RQ
   RQ --> API
-  A & B & G -- on permanent failure --> DLQ
-  OBS --- API & WQ & A & B & G
+  AMD64 & ARM64 & GPU -- on permanent failure --> DLQ
+  OBS --- API & WQ & AMD64 & ARM64 & GPU
 ```
 
 ## Work Model
@@ -93,9 +93,43 @@ Results schema references the existing compatibility record (augmented with `man
 - Platform-constrained pools (e.g., GPU) subscribe only to compatible work.
 - Cache strategy:
   - Use registry-backed BuildKit cache and `--cache-from/--cache-to` to share across hosts.
-  - Prewarm stable layers (base OS, Security, Core) into each pool’s cache.
+  - Prewarm stable layers (base OS, Security, Core) into each pool's cache.
   - Tag/cache keys include template/module versions from the manifest store.
 - Isolation: run builds rootless when possible; sanitize secrets; prune aggressively.
+
+### Ephemeral Executors for Cost Optimization
+
+**Why Ephemeral Executors Matter:**
+- **Cost Savings**: Executors can be terminated when idle, significantly reducing infrastructure costs
+- **Elastic Scaling**: Executor pools can scale up/down based on demand without maintaining idle resources
+- **Resource Efficiency**: Only pay for compute time actually used for builds and tests
+
+**Critical Dependencies for Ephemeral Success:**
+
+**1. Observability is Essential:**
+- **Real-time Monitoring**: Track executor health, build progress, and queue depth
+- **Failure Detection**: Quickly identify and replace failed ephemeral executors
+- **Performance Metrics**: Monitor cache hit rates, build times, and resource utilization
+- **Alerting**: Immediate notification when executors fail or queues back up
+
+**2. Control Plane as State Manager:**
+- **Work Distribution**: Intelligently routes work to available ephemeral executors
+- **State Persistence**: Maintains work queue state independent of executor lifecycle
+- **Failure Recovery**: Requeues work when ephemeral executors terminate unexpectedly
+- **Idempotency**: Ensures work can be safely retried on new executors
+
+**3. OCI/Cache as Shared Foundation:**
+- **Layer Reuse**: Ephemeral executors can leverage pre-built layers from shared cache
+- **Fast Startup**: New executors can quickly resume builds using cached layers
+- **Cross-Executor Sharing**: Build artifacts persist beyond individual executor lifecycle
+- **Registry Integration**: Centralized storage enables seamless executor replacement
+
+**Ephemeral Executor Lifecycle:**
+1. **Spin-up**: New executor joins pool, registers with control plane
+2. **Work Processing**: Pulls work from queue, leverages OCI cache for fast builds
+3. **Monitoring**: Observability tracks progress and health
+4. **Completion**: Publishes results, updates control plane state
+5. **Termination**: Executor shuts down when idle, work state preserved in control plane
 
 ## Evidence and Records
 
@@ -112,22 +146,77 @@ sequenceDiagram
   participant ControlPlane as Control Plane
   participant WQ as Work Queue
   participant Exec as Executor (Pool)
-  participant OCI as OCI/Cache
+  participant Registry as OCI/Cache
   participant Store as Evidence/Records
   participant RQ as Results Queue
 
   Client->>ControlPlane: Request build/test (plan or manifest_id)
   ControlPlane->>WQ: Enqueue WorkItem(manifest_id, axes, platform)
   Exec->>WQ: Pull WorkItem
-  Exec->>ControlPlane: GET manifest by id (from store)
-  Exec->>Exec: Stitch Dockerfile (tools/stitch.py)
-  Exec->>OCI: docker build (cache-from/cache-to)
-  Exec->>Exec: Run tests (tools/test-runner.sh)
+  Exec->>ControlPlane: Get manifest by id
+  Exec->>Exec: Render (stitch template + fragments)
+  Exec->>Registry: Build (cache-from/cache-to)
+  Exec->>Exec: Test (smoke runner)
   Exec->>Store: Write evidence + SBOM
-  Exec->>Store: Write compatibility record
+  Exec->>Store: Write record
   Exec->>RQ: Publish result summary
   ControlPlane->>RQ: Consume result and update views
 ```
+
+## Work / Result Schemas (examples)
+
+```json
+{
+  "work_item": {
+    "manifest_id": "llm_factory",
+    "axes": {"core": "0.1.0", "light": "0.1.0"},
+    "platform": {"os": "linux", "arch": "amd64"},
+    "priority": "normal",
+    "idempotency_key": "<sha256 of manifest/template/modules/base/arch>"
+  }
+}
+```
+
+```json
+{
+  "result": {
+    "build_id": "<uuid>",
+    "manifest_id": "llm_factory",
+    "status": "pass",
+    "image": "llm-factory:dev-<slug>",
+    "evidence_path": "s3://evidence/<build_id>.log",
+    "sbom_path": "s3://sbom/<build_id>.json",
+    "record_path": "s3://records/<build_id>.json"
+  }
+}
+```
+
+## Multi-arch Quirks
+
+- Keep per‑arch cache refs (e.g., `llm-factory-cache:linux-amd64`, `llm-factory-cache:linux-arm64`).
+- Always pass `--platform` on builds; don’t mix cache refs across arches.
+- GPU pools should reuse amd64 base/core caches but add GPU‑specific layers in Core variants.
+
+## Invalidation Sources (quick scan)
+
+| Source change              | Effect on cache/records                   |
+|---------------------------|-------------------------------------------|
+| Base image digest         | Invalidates downstream steps, re‑record   |
+| Template/module version   | Re‑render, rebuild affected layers        |
+| Test suite hash           | Re‑execute tests, update record           |
+| Target platform (arch)    | Separate cache namespace per arch         |
+
+## Observability (first dashboards)
+
+- Queues: depth, oldest age, throughput, retries/DLQ
+- Executors: build duration, test duration, cache hit/miss, success rate
+- Artifacts: image size, layer count, SBOM generation time
+
+## Governance (retention/GC)
+
+- Registry caches: keep last N tags per `manifest_id` × arch; GC older refs regularly
+- Evidence/SBOM: time‑based retention (e.g., 90 days) with exceptions for releases
+- Records: keep indefinitely or mirror to a database with lifecycle policies
 
 ## Invalidations and Rebuilds
 
@@ -144,6 +233,26 @@ sequenceDiagram
 - Artifact metrics: image size, layer count, SBOM generation time.
 - Tracing across render→build→test stages; log correlation keys include build_id.
 
+### Critical Observability for Ephemeral Executors
+
+**Real-time Monitoring Requirements:**
+- **Executor Health**: Track active executors, their status, and resource utilization
+- **Queue Depth**: Monitor work backlog to trigger executor scaling decisions
+- **Cache Performance**: Track cache hit rates to ensure new executors can leverage shared layers
+- **Build Progress**: Real-time visibility into build/test progress across ephemeral executors
+
+**Failure Detection and Recovery:**
+- **Executor Failures**: Detect when ephemeral executors terminate unexpectedly
+- **Work Requeuing**: Automatically requeue work from failed executors
+- **Resource Alerts**: Notify when executor pools need scaling or when queues back up
+- **Performance Degradation**: Identify when cache misses or slow builds indicate infrastructure issues
+
+**Cost Optimization Metrics:**
+- **Idle Time Tracking**: Monitor executor idle time to optimize termination policies
+- **Resource Utilization**: Track CPU/memory usage to right-size executor instances
+- **Cache Efficiency**: Measure cache hit rates to ensure cost-effective layer reuse
+- **Queue Processing Time**: Monitor work processing rates to optimize executor pool sizing
+
 ## Security and Supply Chain
 
 - SBOM generation (we already integrate), image signing, and provenance (SLSA-style) as follow-ups.
@@ -151,11 +260,11 @@ sequenceDiagram
 
 ## Rollout Plan
 
-1. Move to consolidated manifest store (done in repo).
-2. Introduce simple per-arch queues and a single executor per pool.
-3. Enable remote registry cache and prewarm stable layers.
-4. Add results queue and control plane consumer for asynchronous updates.
-5. Scale out pools; add GPU runners; tighten invalidation policies.
+- Phase 1: Consolidated manifest store (done). Outcome: deterministic inputs and simpler tooling.
+- Phase 2: Per‑arch queues and a single executor per pool. Outcome: correct placement; baseline throughput.
+- Phase 3: Remote registry cache + prewarming. Outcome: >70% cache hit for Security/Core; significant build speedup.
+- Phase 4: Results queue + consumer. Outcome: async status; fewer blocking calls in the control plane.
+- Phase 5: Scale pools (add GPU); tighten policies. Outcome: predictable latency SLOs and higher parallelism.
 
 ## Interfaces (Prototype → Scaled)
 
@@ -165,3 +274,20 @@ sequenceDiagram
 ## See Also
 
 - Caching approach and examples: [caching_layers.md](caching_layers.md)
+- README quick start and rationale: [README.md](README.md#tldr)
+- Architecture background: [README.md](README.md#architecture-principles)
+
+## Simplified View (styled)
+
+```mermaid
+flowchart LR
+  classDef cp fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1,stroke-width:2px
+  classDef q  fill:#FFF3E0,stroke:#FB8C00,color:#E65100,stroke-width:2px
+  classDef ex fill:#E8F5E9,stroke:#43A047,color:#1B5E20,stroke-width:2px
+  classDef st fill:#F3E5F5,stroke:#8E24AA,color:#4A148C,stroke-width:2px
+
+  CP[Control Plane]:::cp --> Q[Queues]:::q
+  Q --> EX[Executors]:::ex
+  EX --> ST[Shared Stores]:::st
+  ST --> CP
+```
