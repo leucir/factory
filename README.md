@@ -1,4 +1,4 @@
-# Factory - Layered Image Prototype
+# Container as a product : The Factory (prototype)
 
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
