@@ -294,6 +294,8 @@ For multi-platform or cached builds, use Buildx Bake:
 docker buildx bake -f build/bake.hcl
 ```
 
+`buildx bake` reads `build/bake.hcl` and can target multiple platforms in one run (amd64/arm64) while reusing registry/local caches. The factory scripts stick to single-platform builds; Bake is the quickest way to fan out builds once you have BuildKit drivers and cache storage configured.
+
 ## BONUS
 
 - Empirically check the host Docker layer limit (creates throwaway images until a build fails):
@@ -302,8 +304,6 @@ docker buildx bake -f build/bake.hcl
   
   ./tools/check-layer-limit.sh --max 150
   ```
-
-`buildx bake` reads `build/bake.hcl` and can target multiple platforms in one run (amd64/arm64) while reusing registry/local caches. The factory scripts stick to single-platform builds; Bake is the quickest way to fan out builds once you have BuildKit drivers and cache storage configured.
 
 ## Design Docs
 
