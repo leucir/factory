@@ -168,12 +168,12 @@ except Exception:
     print("__PRODUCT_ERROR__")
     sys.exit(0)
 
+pipeline = {}
 try:
     with urllib.request.urlopen(pipeline_url) as resp:
         pipeline = json.load(resp)
 except Exception:
-    print("__PIPELINE_ERROR__")
-    sys.exit(0)
+    pipeline = {}
 
 # Get manifest data from API
 manifest_id = product.get("metadata", {}).get("manifest_id", "")
@@ -188,6 +188,7 @@ if manifest_id:
         sys.exit(0)
 
 metadata = product.get("metadata", {})
+pipeline_meta = (pipeline or {}).get("metadata", {})
 result = {
     "manifest_id": manifest_id,
     "manifest_data": manifest_data,
@@ -195,8 +196,8 @@ result = {
     "stitch_script": metadata.get("stitch_script", "tools/stitch.py"),
     "image_name": product.get("docker_image_name", "llm-factory"),
     "image_tag": product.get("docker_tag", "dev"),
-    "test_runner": pipeline["metadata"].get("test_runner", "tools/test-runner.sh"),
-    "build_tool": pipeline["metadata"].get("build_tool", "docker build"),
+    "test_runner": pipeline_meta.get("test_runner", metadata.get("test_runner", "tools/test-runner.sh")),
+    "build_tool": pipeline_meta.get("build_tool", metadata.get("build_tool", "docker build")),
     "build_platform": metadata.get("build_platform", ""),
 }
 
@@ -209,11 +210,7 @@ if [[ "${metadata}" == "__PRODUCT_ERROR__" ]]; then
   write_error_report "Product not found via API"
   exit 1
 fi
-if [[ "${metadata}" == "__PIPELINE_ERROR__" ]]; then
-  echo_log "Error: pipeline '${PIPELINE_ID}' not found via API"
-  write_error_report "Pipeline not found via API"
-  exit 1
-fi
+# Pipeline metadata may be absent; continue with defaults from product metadata.
 if [[ "${metadata}" == "__MANIFEST_ERROR__" ]]; then
   echo_log "Error: manifest not found via API"
   write_error_report "Manifest not found via API"

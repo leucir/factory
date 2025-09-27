@@ -4,6 +4,47 @@ This repository is a prototype. The ideas below are evolving; they are intended 
 
 A prototype factory for building Docker images from composable layers. The goal is to incrementally assemble, test, and cache reusable modules so future builds are faster and safer.
 
+## TL;DR
+
+- Why this exists
+  - Building images across many combinations (base OS, security hardening, runtimes, app glue, multiple architectures/GPU) is slow, repetitive, and hard to audit.
+  - This prototype makes builds deterministic (manifest‑driven), faster (layer/registry cache reuse), and explainable (evidence, SBOM, and compatibility records).
+  - We propose a scalable architecture that can be used to build high-scale images. Check the [scale](scale.md) document.
+
+- How it works (high‑level)
+  - You pick a manifest / template ID (e.g., `llm_factory`, `llm_factory_cuda`) from a consolidated store. The stitcher renders a Dockerfile from a template + module fragments, the builder uses BuildKit to cache and build, a smoke runner validates the image, and a compatibility record captures the result with pointers to evidence.
+  - The control plane serves product metadata read‑only; executors (local or in pools) perform renders/builds/tests. See the diagram below and the [Architecture Principles](#architecture-principles). (Pipeline metadata is optional in this prototype.)
+  - New products, unless the full stack is new, will reuse the existent fragments and cached layers to build new images with speed and consistency.
+
+- Data structure overview
+  - **Products** define what to build (manifest ID, image name, metadata)
+  - (Optional) **Pipelines** define named build recipes (steps, tools, test runners) for advanced orchestration
+  - **Manifests** specify the template + module versions for a build
+  - **Modules** are composable Docker layers with versioned fragments
+  - **Test Plans** define matrix combinations to explore (e.g., core/light versions)
+  - **Compatibility Records** capture build results with evidence pointers
+  - All data is stored as JSON and served via read-only APIs
+
+- Quick start
+
+  All code on this project runs locally. The target architecture implementation is not planned yet.
+
+  - Local build + smoke test (fastest path):
+    - `./tools/run-ci-local.sh [product_id]` → renders from the manifest store, builds, runs smoke tests, and writes records/evidence.
+    - Defaults to `llm_factory`; pass `llm_factory_cuda` for the GPU variant.
+  - End‑to‑end via API metadata:
+    - `./tools/run-ci-local-api.sh [product_id]` (pipeline metadata is optional; the script falls back to defaults from the product).
+  - Explore module combinations (matrix):
+    - `./tools/explore-plan.sh --plan baseline_core_light [--dry-run]`.
+  - Exercise a single fragment (isolation):
+    - `./tools/test-fragment.sh --manifest-id core_smoke`.
+
+- Where to look
+  - Manifest IDs live under the keys in `control_plane/data/manifest.json` (e.g., `llm_factory`, `llm_factory_cuda`, `core_smoke`). Pass `--manifest-id` to tools to target one.
+  - Outputs land in `control_plane/data/compatibility/{records,evidence,sbom}`; failures also emit `error-<build_id>.json` with a log excerpt.
+  - On GPU hosts, install the NVIDIA Container Toolkit once: `sudo ./tools/install-nvidia-container-toolkit.sh`.
+  - Why this design? See [Architecture Principles](#architecture-principles). For deeper context: [scale.md](scale.md) and [caching_layers.md](caching_layers.md).
+
 ## Architecture Principles
 
 - **Container‑as‑a‑product**
@@ -54,6 +95,59 @@ A prototype factory for building Docker images from composable layers. The goal 
   - Validate driver/runtime pairs on GPU hosts; gate promotion on GPU smoke tests.
   - Considerations & mitigations: bigger images and possible driver/CUDA version skew at runtime. Address by pinning CUDA versions, documenting minimum driver/toolkit, and validating on GPU hosts.
 
+## Data Structure & Relationships
+
+The Factory prototype uses a hierarchical data structure where each entity has specific responsibilities and relationships. All data is stored as JSON files and served via read-only APIs.
+
+### Core Entities
+
+- **Products** (`control_plane/data/product.json`): Define what to build with metadata like image names, tags, and manifest references
+- **Pipelines** (`control_plane/data/pipeline.json`): Define build processes with steps, tools, and test runners
+- **Manifests** (`control_plane/data/manifest.json`): Specify template + module version combinations for reproducible builds
+- **Modules** (`control_plane/data/modules/`): Versioned Docker layer fragments with metadata and Dockerfile pieces
+- **Test Plans** (`control_plane/data/test_plan.json`): Define matrix combinations to explore (e.g., core/light version matrices)
+- **Schemas** (`control_plane/data/schemas/`): JSON schemas for validation (e.g., compatibility records)
+- **Compatibility Records** (`control_plane/data/compatibility/records/`): Build results with evidence pointers
+- **Evidence** (`control_plane/data/compatibility/evidence/`): Build logs and test outputs
+- **SBOMs** (`control_plane/data/compatibility/sbom/`): Software Bill of Materials for security/compliance
+
+### Data Structure ER Diagram
+
+```mermaid
+erDiagram
+    Product ||--|| Manifest : "references"
+    Pipeline ||--o| Product : "optional"
+    Manifest ||--o{ Module : "contains"
+    TestPlan ||--|| Product : "tests"
+    TestPlan ||--|| Manifest : "uses"
+    CompatibilityRecord ||--|| Product : "records"
+    CompatibilityRecord ||--|| Manifest : "references"
+    CompatibilityRecord ||--o| Evidence : "points to"
+    CompatibilityRecord ||--o| SBOM : "points to"
+    Schema ||--o{ CompatibilityRecord : "validates"
+```
+
+### Data Flow
+
+1. **Configuration**: Products reference manifests; pipelines (optional) reference products
+2. **Planning**: Test plans expand matrix combinations using manifest + module versions
+3. **Execution**: Build processes render Dockerfiles from manifests + modules, build images, run tests
+4. **Recording**: Compatibility records capture results with pointers to evidence/SBOMs
+5. **Validation**: Schemas ensure data integrity across all entities
+
+### API Endpoints
+
+The control plane exposes read-only APIs for all entities:
+
+- `/products` - List and retrieve products
+- (optional) `/pipelines` - List and retrieve pipeline definitions  
+- `/manifests` - List and retrieve manifests
+- `/modules` - List modules, versions, and module details
+- `/test-plans` - List and retrieve test plans
+- `/schemas` - List and retrieve JSON schemas
+- `/artifacts` - List and retrieve build artifacts
+- `/compatibility` - Query compatibility records
+
 ## High‑Level Diagram
 
 ```mermaid
@@ -74,15 +168,6 @@ flowchart LR
   ST -- summaries --> CP
 ```
 
-## TL;DR
-
-- Build the full image + smoke test locally with `./tools/run-ci-local.sh [product_id]` (defaults to `llm_factory`; add `llm_factory_cuda` for the GPU stack).
-- Exercise the control-plane flow end-to-end using `./tools/run-ci-local-api.sh [product_id] [pipeline_id]`, which renders, builds, tests, and records evidence.
-- Inspect plan matrices quickly via `./tools/explore-plan.sh --plan baseline_core_light --dry-run` or drop the flag to execute every combo.
-- Focus on a single fragment with `./tools/test-fragment.sh --manifest-id core_smoke` (swap manifests to target other layers).
-- Outputs land under `control_plane/data/compatibility/` (records/evidence/SBOM); cache builds make repeat runs faster.
-- On GPU hosts, run `sudo ./tools/install-nvidia-container-toolkit.sh` once so CUDA containers see the hardware.
-
 ## Project Structure
 
 ```
@@ -100,9 +185,9 @@ factory/
 └── README.md                   # This file
 ```
 
-### Modules
+### Modules / Fragments
 
-| Layer     | Purpose                                   | Key files |
+| Fragments | Purpose                                   | Key files |
 |-----------|-------------------------------------------|-----------|
 | security  | OS patching & security packages           | `modules/security/<version>/`
 | core      | Stable runtimes & base tooling            | `modules/core/<version>/`
@@ -124,7 +209,7 @@ Prefer a single command? `./tools/test-fragment.sh` wraps the render/build/run f
 
 #### CUDA Variant
 
-Need GPU runtime? Use the `llm_factory_cuda` entry in the manifest store (`control_plane/data/manifest.json`), which swaps in the CUDA-enabled core module (`control_plane/data/modules/core/0.2.0/`) while still starting from `ubuntu:22.04`. The control-plane exposes this as product `llm_factory_cuda` and pipeline `layered_build_pipeline_cuda`.
+Need GPU runtime? Use the `llm_factory_cuda` entry in the manifest store (`control_plane/data/manifest.json`), which swaps in the CUDA-enabled core module (`modules/core/0.2.0/`) while still starting from `ubuntu:22.04`. The control-plane exposes this as product `llm_factory_cuda` (a pipeline ID may exist but is optional in this prototype).
 
 ### Compatibility Knowledge
 
@@ -135,7 +220,7 @@ Need GPU runtime? Use the `llm_factory_cuda` entry in the manifest store (`contr
 - SBOMs: `control_plane/data/compatibility/sbom/<build_id>.json` (generated via Syft; scripts skip if Syft is absent)
 - Error captures: `control_plane/data/compatibility/records/error-<build_id>.json` (written when a build fails; includes a tail of the evidence log for fast triage)
 
-Pipelines persist the outcome of each build/test cycle (base digest + module versions + architecture + test hash → pass/fail + image digest). When the same combination appears again, the factory can decide to reuse the recorded result instead of rebuilding from scratch.
+Compatibility records persist the outcome of each build/test cycle (base digest + module versions + architecture + test hash → pass/fail + image digest). When the same combination appears again, the factory can decide to reuse the recorded result instead of rebuilding from scratch.
 
 ## Typical Workflow
 
@@ -155,8 +240,8 @@ To mirror the CI pipeline locally, run:
 To execute the same flow via the control-plane API metadata:
 
 ```
-./tools/run-ci-local-api.sh                              # defaults to llm_factory / layered_build_pipeline
-./tools/run-ci-local-api.sh llm_factory_cuda layered_build_pipeline_cuda
+./tools/run-ci-local-api.sh llm_factory                 # pipeline metadata optional; falls back to product defaults
+./tools/run-ci-local-api.sh llm_factory_cuda
 ```
 
 If you plan to run the CUDA variant on a GPU-enabled host, install the NVIDIA Container Toolkit first:
@@ -187,7 +272,7 @@ docker buildx bake -f build/bake.hcl
 
 ## Control Plane Integration
 
-`control_plane/data/product.json` links the `llm_factory` product to the manifest, versioned template, modules, and compatibility store. `control_plane/data/pipeline.json` defines a pipeline that renders, builds, tests, and records results.
+`control_plane/data/product.json` links the `llm_factory` product to the manifest, versioned template, modules, and compatibility store. Optionally, `control_plane/data/pipeline.json` can define named build recipes (runner/tool metadata) for advanced orchestration; in this prototype, pipeline metadata is not required.
 
 ## Next Steps
 
