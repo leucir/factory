@@ -1,4 +1,4 @@
-# Executive Summary — Layered Image Factory (Prototype)
+# Executive Summary — Container as a product : The Factory (Prototype)
 
 This is a prototype for building container images quickly, safely, and repeatably at scale. It turns image creation into a simple, manifest‑driven “factory” process so teams can ship more reliably with less toil.
 
