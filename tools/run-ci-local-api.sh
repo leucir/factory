@@ -28,7 +28,7 @@ API_HOST="127.0.0.1"
 API_PORT="8081"
 BASE_URL="http://${API_HOST}:${API_PORT}"
 MANIFEST_ID=""
-MANIFEST_STORE="control_plane/data/manifest.json"
+MANIFEST_STORE=""
 IMAGE_TAG=""
 BUILD_PLATFORM=""
 EVIDENCE_DIR="control_plane/data/compatibility/evidence"
@@ -117,6 +117,10 @@ cleanup() {
     kill "${API_PID}" >/dev/null 2>&1 || true
     wait "${API_PID}" 2>/dev/null || true
   fi
+  # Clean up temporary manifest file
+  if [[ -n "${MANIFEST_STORE:-}" && -f "${MANIFEST_STORE}" ]]; then
+    rm -rf "$(dirname "${MANIFEST_STORE}")" >/dev/null 2>&1 || true
+  fi
 }
 
 trap cleanup EXIT
@@ -143,7 +147,7 @@ if ! curl -sf "${BASE_URL}/health" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo_log "[API] Fetching product and pipeline metadata"
+echo_log "[API] Fetching product, pipeline, and manifest metadata"
 metadata=$(BASE_URL="${BASE_URL}" PRODUCT_ID="${PRODUCT_ID}" PIPELINE_ID="${PIPELINE_ID}" python3 <<'PY'
 import json
 import os
@@ -171,10 +175,22 @@ except Exception:
     print("__PIPELINE_ERROR__")
     sys.exit(0)
 
+# Get manifest data from API
+manifest_id = product.get("metadata", {}).get("manifest_id", "")
+manifest_data = {}
+if manifest_id:
+    try:
+        manifest_url = f"{base}/manifests/{manifest_id}"
+        with urllib.request.urlopen(manifest_url) as resp:
+            manifest_data = json.load(resp)
+    except Exception:
+        print("__MANIFEST_ERROR__")
+        sys.exit(0)
+
 metadata = product.get("metadata", {})
 result = {
-    "manifest_id": metadata.get("manifest_id", ""),
-    "manifest_store": metadata.get("manifest_store", "control_plane/data/manifest.json"),
+    "manifest_id": manifest_id,
+    "manifest_data": manifest_data,
     "rendered": metadata.get("rendered_dockerfile", "dockerfiles/Dockerfile.rendered"),
     "stitch_script": metadata.get("stitch_script", "tools/stitch.py"),
     "image_name": product.get("docker_image_name", "llm-factory"),
@@ -198,8 +214,40 @@ if [[ "${metadata}" == "__PIPELINE_ERROR__" ]]; then
   write_error_report "Pipeline not found via API"
   exit 1
 fi
+if [[ "${metadata}" == "__MANIFEST_ERROR__" ]]; then
+  echo_log "Error: manifest not found via API"
+  write_error_report "Manifest not found via API"
+  exit 1
+fi
 
 echo "${metadata}" >> "${EVIDENCE_FILE}"
+
+# Create temporary manifest file from API data
+MANIFEST_STORE=$(METADATA="${metadata}" python3 - <<'PY'
+import json
+import os
+import tempfile
+from pathlib import Path
+
+info = json.loads(os.environ["METADATA"])
+manifest_data = info.get("manifest_data", {})
+manifest_id = info.get("manifest_id", "")
+
+if not manifest_data or not manifest_id:
+    print("")
+    exit(0)
+
+# Create a temporary manifest file with the API data
+temp_dir = Path(tempfile.mkdtemp(prefix="manifest-"))
+manifest_file = temp_dir / "manifest.json"
+
+# Create manifest store format with the single manifest
+manifest_store = {manifest_id: manifest_data}
+manifest_file.write_text(json.dumps(manifest_store, indent=2))
+
+print(str(manifest_file))
+PY
+)
 
 MANIFEST_ID=$(METADATA="${metadata}" python3 - <<'PY'
 import json
@@ -215,13 +263,11 @@ if [[ -z "${MANIFEST_ID}" ]]; then
   exit 1
 fi
 
-MANIFEST_STORE=$(METADATA="${metadata}" python3 - <<'PY'
-import json
-import os
-info = json.loads(os.environ["METADATA"])
-print(info.get("manifest_store", "control_plane/data/manifest.json"))
-PY
-)
+if [[ -z "${MANIFEST_STORE}" ]]; then
+  echo_log "Error: manifest data not available from API"
+  write_error_report "Manifest data not available from API"
+  exit 1
+fi
 
 IMAGE_TAG=$(METADATA="${metadata}" python3 - <<'PY'
 import json
