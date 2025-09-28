@@ -123,9 +123,9 @@ The Factory prototype uses a hierarchical data structure where each entity has s
 - **Products** (`control_plane/data/product.json`): Define what to build with metadata like image names, tags, and manifest references
 - (optional) **Pipelines** (`control_plane/data/pipeline.json`): Named build recipes (steps, tools, test runners)
 - **Manifests** (`control_plane/data/manifest.json`): Specify template + module version combinations for reproducible builds
-- **Modules** (`modules/`): Versioned Docker layer fragments with metadata and Dockerfile pieces
+- **Modules** (`control_plane/data/modules/`): Versioned Docker layer fragments with metadata and Dockerfile pieces
 - **Test Plans** (`control_plane/data/test_plan.json`): Define matrix combinations to explore (e.g., core/light version matrices)
-- **Schemas** (`schemas/`): JSON schemas for validation (e.g., compatibility records)
+- **Schemas** (`control_plane/data/schemas/`): JSON schemas for validation (e.g., compatibility records)
 - **Compatibility Records** (`control_plane/data/compatibility/records/`): Build results with evidence pointers
 - **Evidence** (`control_plane/data/compatibility/evidence/`): Build logs and test outputs
 - **SBOMs** (`control_plane/data/compatibility/sbom/`): Software Bill of Materials for security/compliance
@@ -239,10 +239,10 @@ factory/
 
 | Fragments | Purpose                                   | Key files |
 |-----------|-------------------------------------------|-----------|
-| security  | OS patching & security packages           | `modules/security/<version>/`
-| core      | Stable runtimes & base tooling            | `modules/core/<version>/`
-| light     | Fast-moving libraries (e.g., transformers)| `modules/light/<version>/`
-| model_serve_mock | Mock model-serving layer & entrypoint | `modules/model_serve_mock/<version>/`
+| security  | OS patching & security packages           | `control_plane/data/modules/security/<version>/`
+| core      | Stable runtimes & base tooling            | `control_plane/data/modules/core/<version>/`
+| light     | Fast-moving libraries (e.g., transformers)| `control_plane/data/modules/light/<version>/`
+| model_serve_mock | Mock model-serving layer & entrypoint | `control_plane/data/modules/model_serve_mock/<version>/`
 
 Each module version declares metadata in `module.json` (including an `order`) and supplies a `Dockerfile.fragment`. The Stitch tool reads a manifest from the consolidated store (`control_plane/data/manifest.json`) via its ID (e.g. `llm_factory`) to select a template + fragment versions, injects those fragments into the template, and writes `dockerfiles/Dockerfile.rendered`.
 
