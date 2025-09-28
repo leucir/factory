@@ -1,9 +1,11 @@
 
 # Factory‑Friendly CI with GitHub Actions + Buildx/Bake (+ docker‑repack)
 
+This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
+
 ## 1. Purpose
 
-Apply the Factory’s language (manifests, fragments, stitch, cache, evidence) using GitHub Actions as a pragmatic alternative to building a custom control plane and executors on day one. We focus on how these tools interlock; for how‑tos, see official links.
+Apply the Factory’s design (manifests, fragments, stitch, cache, evidence) using GitHub Actions as a pragmatic alternative to building a custom control plane and executors on day one. We focus on how these tools interlock; for how‑tos, see official links.
 
 - Buildx/Bake: https://docs.docker.com/build/bake/
 - build‑push‑action: https://github.com/docker/build-push-action
