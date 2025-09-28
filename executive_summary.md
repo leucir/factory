@@ -9,6 +9,13 @@ Modern platforms ship many image variants (base OS + security + runtimes + app g
 - Hard to reason about (what changed, what passed, what is safe to reuse?)
 - Expensive (compute, bandwidth, and human time)
 
+### The pain for the Consumers (Platform/App Teams)
+
+- Delayed access to updated images when fixes or features land; waits depend on the factory build cycles
+- Inconsistent variants across architectures/GPU; missing or untested tags block delivery
+- Low visibility into change and safety: unclear diffs, no easy SBOM/provenance to prove what’s inside
+- Compliance/security uncertainty: patch status and attestations are not obvious or auditable
+
 ## Our Approach (Simple, Deterministic, Observable)
 
 - Simple
@@ -85,3 +92,5 @@ flowchart LR
 - Architecture background: [README.md](README.md#architecture-principles)
 - Scale‑out details: [scale.md](scale.md)
 - Caching strategy: [caching_layers.md](caching_layers.md)
+- AI improving the factory: [ai4tech.md](ai4tech.md)
+- An alternative using Github actions and Docker Bake: [gitaction_docker_solution.md](gitaction_docker_solution.md)
