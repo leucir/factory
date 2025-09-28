@@ -53,8 +53,60 @@ flowchart LR
   AMD64 & ARM64 & GPU -- publish result --> RQ
   RQ --> API
   AMD64 & ARM64 & GPU -- on permanent failure --> DLQ
-  OBS --- API & WQ & AMD64 & ARM64 & GPU
+OBS --- API & WQ & AMD64 & ARM64 & GPU
 ```
+
+## Multi‑Region Deployment (reliability, sovereignty, multi‑cloud)
+
+Goals
+- Reliability: tolerate regional failures and network partitions; isolate blast radius
+- Sovereignty: keep data (evidence/records) within jurisdictions; control cross‑border flows
+- Multi‑cloud: avoid lock‑in; replicate only what’s needed (manifests/cache/records)
+
+Approach
+- Per‑region control‑plane replica (read‑only), queues, and executor pools (amd64/arm64/GPU)
+- Regional stores for registry cache and evidence/records; policy‑driven mirroring between regions/clouds
+- Manifest store distribution as read‑only replicas; results/events propagate asynchronously
+- Routing policy: assign tenants/work to regions; failover with degraded cache if needed
+
+```mermaid
+flowchart LR
+  classDef cp fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1,stroke-width:2px
+  classDef q  fill:#FFF3E0,stroke:#FB8C00,color:#E65100,stroke-width:2px
+  classDef ex fill:#E8F5E9,stroke:#43A047,color:#1B5E20,stroke-width:2px
+  classDef st fill:#F3E5F5,stroke:#8E24AA,color:#4A148C,stroke-width:2px
+
+  subgraph Global[Global View]
+    CP[Control Plane (read‑only)]:::cp
+    MS[(Manifest Store)]:::cp
+  end
+
+  subgraph R1[Region A]
+    Q1[Queue]:::q
+    E1[Executors]:::ex
+    S1[(Registry Cache / Evidence / Records)]:::st
+  end
+
+  subgraph R2[Region B]
+    Q2[Queue]:::q
+    E2[Executors]:::ex
+    S2[(Registry Cache / Evidence / Records)]:::st
+  end
+
+  CP --> MS
+  MS -. replicate .-> R1
+  MS -. replicate .-> R2
+  Q1 --> E1
+  Q2 --> E2
+  E1 --> S1
+  E2 --> S2
+  S1 -. policy mirror .- S2
+```
+
+Notes
+- Evidence/records replication should follow compliance policy (some regions keep data local, others can mirror summaries)
+- Cache mirroring can be selective (prewarm stable layers only) to reduce cross‑region bandwidth
+- Observability dashboards should segment by region and aggregate globally
 
 ## Scheduling and Queues
 
