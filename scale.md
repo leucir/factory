@@ -58,16 +58,15 @@ OBS --- API & WQ & AMD64 & ARM64 & GPU
 
 ## Multi‑Region Deployment (reliability, sovereignty, multi‑cloud)
 
-Goals
-- Reliability: tolerate regional failures and network partitions; isolate blast radius
-- Sovereignty: keep data (evidence/records) within jurisdictions; control cross‑border flows
-- Multi‑cloud: avoid lock‑in; replicate only what’s needed (manifests/cache/records)
+**Goals**
 
-Approach
-- Per‑region control‑plane replica (read‑only), queues, and executor pools (amd64/arm64/GPU)
-- Regional stores for registry cache and evidence/records; policy‑driven mirroring between regions/clouds
-- Manifest store distribution as read‑only replicas; results/events propagate asynchronously
-- Routing policy: assign tenants/work to regions; failover with degraded cache if needed
+Our multi-region deployment strategy is designed to create a resilient, compliant, and vendor-agnostic Factory that can operate across different jurisdictions and cloud providers. We envision a system that gracefully handles regional outages while maintaining strict data sovereignty requirements. The architecture must avoid vendor lock-in by ensuring that only essential components are replicated across regions, while keeping sensitive data within appropriate jurisdictional boundaries.
+
+**Approach**
+
+The Factory's multi-region architecture begins with deploying complete control plane replicas in each region, ensuring that every region has its own read-only API, queues, and executor pools capable of handling all supported architectures. Each region maintains its own registry cache and evidence storage, with intelligent policy-driven mirroring that respects data sovereignty requirements while enabling efficient cross-region collaboration.
+
+The manifest store operates as a distributed read-only system, with changes propagating asynchronously across regions to maintain consistency without creating tight coupling. Our routing policies intelligently assign work to the most appropriate region based on tenant preferences, data residency requirements, and current system health, with automatic failover capabilities that may temporarily operate with reduced cache efficiency but maintain full functionality.
 
 ```mermaid
 flowchart LR
@@ -75,27 +74,33 @@ flowchart LR
   classDef q  fill:#FFF3E0,stroke:#FB8C00,color:#E65100,stroke-width:2px
   classDef ex fill:#E8F5E9,stroke:#43A047,color:#1B5E20,stroke-width:2px
   classDef st fill:#F3E5F5,stroke:#8E24AA,color:#4A148C,stroke-width:2px
+  classDef route fill:#FFF8E1,stroke:#F57F17,color:#E65100,stroke-width:2px
 
-  subgraph Global[Global View]
-    CP[Control Plane (read‑only)]:::cp
-    MS[(Manifest Store)]:::cp
+  subgraph Global[Global Coordination]
+    Router[Intelligent Router]:::route
+    MS[(Distributed Manifest Store)]:::cp
   end
 
   subgraph R1[Region A]
+    CP1[Control Plane Replica]:::cp
     Q1[Queue]:::q
     E1[Executors]:::ex
     S1[(Registry Cache / Evidence / Records)]:::st
   end
 
   subgraph R2[Region B]
+    CP2[Control Plane Replica]:::cp
     Q2[Queue]:::q
     E2[Executors]:::ex
     S2[(Registry Cache / Evidence / Records)]:::st
   end
 
-  CP --> MS
-  MS -. replicate .-> R1
-  MS -. replicate .-> R2
+  Router --> CP1
+  Router --> CP2
+  MS -. async sync .-> CP1
+  MS -. async sync .-> CP2
+  CP1 --> Q1
+  CP2 --> Q2
   Q1 --> E1
   Q2 --> E2
   E1 --> S1
@@ -227,6 +232,8 @@ sequenceDiagram
 
 ## Invalidation Sources (quick scan)
 
+What to do when something changes in the product definition? This is an initial exercise that can be incorporated in the Factory policies and pipelines.
+
 | Source change              | Effect on cache/records                   |
 |---------------------------|-------------------------------------------|
 | Base image digest         | Invalidates downstream steps, re‑record   |
@@ -280,11 +287,6 @@ sequenceDiagram
 - Phase 3: Remote registry cache + prewarming. Outcome: >70% cache hit for Security/Core; significant build speedup.
 - Phase 4: Results queue + consumer. Outcome: async status; fewer blocking calls in the control plane.
 - Phase 5: Scale pools (add GPU); tighten policies. Outcome: predictable latency SLOs and higher parallelism.
-
-## Interfaces (Prototype → Scaled)
-
-- Work item derives from manifest store key; our current tools already accept `--manifest-id` and `--manifest-store`.
-- Records include `manifest_id` and evidence pointers, aligning with the proposed results format.
 
 ## See Also
 
