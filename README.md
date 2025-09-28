@@ -31,7 +31,7 @@ A prototype factory for building Docker images from composable layers. The goal 
 
 - Quick start
 
-  All code on this project runs locally. The implementation of the target architecture is not planned yet.
+  All code on this project runs locally. The target multi‑region/queue architecture is not implemented in this prototype.
 
   - Local build + smoke test (fastest path):
     - `./tools/run-ci-local.sh [product_id]` → renders from the manifest store, builds, runs smoke tests, and writes records/evidence.
@@ -106,7 +106,7 @@ A prototype factory for building Docker images from composable layers. The goal 
   - Smoke tests inherit platform via `DOCKER_DEFAULT_PLATFORM` to avoid runtime mismatches during `docker run`.
   - Buildx + registry cache lets pools (amd64/arm64) share intermediate layers where possible.
   - Per‑arch queues/executors (see scale.md) keep placement simple while maximizing cache hits.
-  - Considerations & mitigations: cross‑building can miss runtime‑only issues and GPU validation won’t happen on non‑GPU hosts. Address by running smoke/integration tests on target architectures and executing GPU tests on GPU runners.
+  - Considerations & mitigations: cross‑building can miss runtime‑only issues and GPU validation won’t happen on non‑GPU hosts. Address by running smoke/integration tests on target architectures and executing GPU tests on GPU executors.
 
 - **Host GPU dependency isolation** – CUDA lives in the `core` layer; hosts install the NVIDIA toolkit to expose GPUs.
   - GPU variant (`llm_factory_cuda`) swaps Core in the manifest; executors in a GPU pool pick up those jobs.
@@ -159,24 +159,18 @@ classDiagram
 
 ### Data Flow
 
-1. **Configuration**: Products reference manifests; pipelines (optional) reference products
-2. **Planning**: Test plans expand matrix combinations using manifest + module versions
-3. **Execution**: Build processes render Dockerfiles from manifests + modules, build images, run tests
-4. **Recording**: Compatibility records capture results with pointers to evidence/SBOMs
-5. **Validation**: Schemas ensure data integrity across all entities
+1. **Configuration**: Products reference manifests (pipelines optional)
+2. **Execution**: Render → build → test using manifest + fragments
+3. **Recording**: Write compatibility records with pointers to evidence/SBOMs
 
 ### API Endpoints
 
-The control plane exposes read-only APIs for all entities:
+The control plane exposes read-only APIs for key entities:
 
-- `/products` - List and retrieve products
-- (optional) `/pipelines` - List and retrieve pipeline definitions  
-- `/manifests` - List and retrieve manifests
-- `/modules` - List modules, versions, and module details
-- `/test-plans` - List and retrieve test plans
-- `/schemas` - List and retrieve JSON schemas
-- `/artifacts` - List and retrieve build artifacts
-- `/compatibility` - Query compatibility records
+- `/products` – Retrieve product definitions
+- `/manifests` – Retrieve manifests by ID
+- `/test-plans` – List and expand plan matrices
+- `/compatibility` – Query compatibility records
 
 ## High‑Level Diagram
 
@@ -327,7 +321,7 @@ docker buildx bake -f build/bake.hcl
 
 ## Bonus material
 
-1. Add AI to the Factory to AI to enhance the Factory's container build, test, and deployment capabilities: 
+1. Add AI to enhance the Factory's container build, test, and deployment capabilities: 
 [ai4tech.md](ai4tech.md)
 
 
