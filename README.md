@@ -339,4 +339,16 @@ docker buildx bake -f build/bake.hcl
   ./tools/check-layer-limit.sh --max 150
   ```
 
+## Future Improvements
+
+When time permits, the following enhancements are planned to further improve the Factory's capabilities:
+
+- **Docker build time optimization**: Separate compile from build phases to reduce build times and improve cache efficiency
+- **P2P image download acceleration**: Integrate with specialized solutions like Uber Kraken and CNCF Dragonfly for faster image distribution
+- **Enterprise governance integration**: Better integration with enterprise governance tools for compliance and security management
+- **Enhanced observability**: Improve the design for observability using OpenTelemetry for comprehensive monitoring and tracing
+- **Infrastructure orchestration**: Design the infrastructure orchestrator to dynamically provision nodes for use as executors
+
+
+
 
