@@ -9,10 +9,12 @@ A prototype factory for building Docker images from composable layers. The goal 
 - Why this exists
   - Building images across many combinations (base OS, security hardening, runtimes, app glue, multiple architectures/GPU) is slow, repetitive, and hard to audit.
   - This prototype makes builds deterministic (manifest‑driven), faster (layer/registry cache reuse), and explainable (evidence, SBOM, and compatibility records).
-  - We propose a scalable architecture that can be used to build high-scale images. Check the [scale](scale.md) document.
+  - We propose a scalable architecture that can be used to build high-scale images. More in the [Additional design doc](#additional-design-docs) section.
+  - Use Fragments to build up complex Docker files, and at the same time have the ability to test them individually, or partially combined, allows the Factory to experiment and accelerate the delivery of images.
+  - Explore alternatives and the future state of AI-driven Factories. More in the [Bonus](#bonus-material) section.
 
 - How it works (high‑level)
-  - You pick a manifest / template ID (e.g., `llm_factory`, `llm_factory_cuda`) from a consolidated store. The stitcher renders a Dockerfile from a template + module fragments, the builder uses BuildKit to cache and build, a smoke runner validates the image, and a compatibility record captures the result with pointers to evidence.
+  - You pick a manifest / template ID from the control plane manifest catalog. The stitcher component renders a Dockerfile from a template + fragments, the builder uses BuildKit to cache and build, a smoke runner validates the image, and a compatibility record captures the result with pointers to evidence.
   - The control plane serves product metadata read‑only; executors (local or in pools) perform renders/builds/tests. See the diagram below and the [Architecture Principles](#architecture-principles). (Pipeline metadata is optional in this prototype.)
   - New products, unless the full stack is new, will reuse the existent fragments and cached layers to build new images with speed and consistency.
 
@@ -27,7 +29,7 @@ A prototype factory for building Docker images from composable layers. The goal 
 
 - Quick start
 
-  All code on this project runs locally. The target architecture implementation is not planned yet.
+  All code on this project runs locally. The implementation of the target architecture is not planned yet.
 
   - Local build + smoke test (fastest path):
     - `./tools/run-ci-local.sh [product_id]` → renders from the manifest store, builds, runs smoke tests, and writes records/evidence.
@@ -198,15 +200,35 @@ flowchart LR
 
 ```
 factory/
-├── model_serve_mock/           # Mock model-serving layer packaged in the final image
+├── ai4tech.md                  # AI integration capabilities and architecture
 ├── build/                      # Buildx bake file & cache ignore rules
+├── caching_layers.md           # Docker layer caching strategy documentation
 ├── ci/                         # CI workflow template
-├── compatibility/              # Compatibility records and documentation
 ├── control_plane/              # FastAPI control plane & tests
+│   ├── data/                   # Centralized data store
+│   │   ├── artifact.json       # Artifact definitions
+│   │   ├── compatibility/      # Compatibility records, evidence, SBOMs
+│   │   ├── manifest.json       # Consolidated manifest store
+│   │   ├── model.json          # Model definitions
+│   │   ├── modules/            # Module fragments (moved from root)
+│   │   ├── pipeline.json       # Pipeline definitions
+│   │   ├── product.json        # Product definitions
+│   │   ├── schemas/            # JSON schemas (moved from root)
+│   │   ├── task.json           # Task definitions
+│   │   └── test_plan.json      # Test plan definitions
+│   ├── src/                    # FastAPI application source
+│   │   ├── api/                # API endpoints (products, artifacts, pipelines, etc.)
+│   │   ├── entities.py         # Data models
+│   │   └── main.py             # FastAPI application entry point
+│   ├── tests/                  # API tests
+│   └── requirements.txt        # Python dependencies
 ├── dockerfiles/                # Rendered Dockerfile + versioned templates
-├── modules/                    # Layer fragments (security/core/light/model_serve_mock)
-├── control_plane/data/manifest.json   # Consolidated manifest store (keys → manifest definitions)
-├── schemas/                    # JSON schemas (e.g., compatibility record)
+├── executive_summary.md        # Executive summary document
+├── gitaction_docker_solution.md # GitHub Actions Docker solution
+├── model_serve_mock/           # Mock model-serving layer packaged in the final image
+├── scale.md                    # Scalability architecture documentation
+├── storage/                    # Object storage for models
+├── tests/                      # Integration tests
 ├── tools/                      # Stitching and smoke-test scripts
 └── README.md                   # This file
 ```
@@ -296,26 +318,25 @@ docker buildx bake -f build/bake.hcl
 
 `buildx bake` reads `build/bake.hcl` and can target multiple platforms in one run (amd64/arm64) while reusing registry/local caches. The factory scripts stick to single-platform builds; Bake is the quickest way to fan out builds once you have BuildKit drivers and cache storage configured.
 
-## BONUS
+## Additional Design Docs
 
-- Empirically check the host Docker layer limit (creates throwaway images until a build fails):
+- Scaling plan: see [scale.md](scale.md)
+- Caching strategy: see [caching_layers.md](caching_layers.md)
+
+## Bonus material
+
+1. Add AI to the Factory to AI to enhance the Factory's container build, test, and deployment capabilities: 
+[ai4tech.md](ai4tech.md)
+
+
+2. Apply the Factory’s language (manifests, fragments, stitch, cache, evidence) using GitHub Actions: 
+[gitaction_docker_solution.md](gitaction_docker_solution.md)
+
+3. Empirically check the host Docker layer limit (creates throwaway images until a build fails):
   ```
   #The --max arguments is to test the script. Once removed, the script will try to add layers until breaks
   
   ./tools/check-layer-limit.sh --max 150
   ```
 
-## Design Docs
 
-- Scaling plan: see [scale.md](scale.md)
-- Caching strategy: see [caching_layers.md](caching_layers.md)
-
-## Control Plane Integration
-
-`control_plane/data/product.json` links the `llm_factory` product to the manifest, versioned template, modules, and compatibility store. Optionally, `control_plane/data/pipeline.json` can define named build recipes (runner/tool metadata) for advanced orchestration; in this prototype, pipeline metadata is not required.
-
-## Next Steps
-
-- Expand `build/bake.hcl` with additional bases (e.g., Debian) and architectures.
-- Add SBOM/signing tools in dedicated modules or CI steps.
-- Persist compatibility records to your database or OCI referrers in addition to the sample files.
