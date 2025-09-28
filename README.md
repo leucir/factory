@@ -1,5 +1,7 @@
 # Container as a product : The Factory (prototype)
 
+[Back to Executive Summary](executive_summary.md)
+
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
 A prototype factory for building Docker images from composable layers. The goal is to incrementally assemble, test, and cache reusable modules so future builds are faster and safer.
@@ -20,7 +22,7 @@ A prototype factory for building Docker images from composable layers. The goal 
 
 - Data structure overview
   - **Products** define what to build (manifest ID, image name, metadata)
-  - (Optional) **Pipelines** define named build recipes (steps, tools, test runners) for advanced orchestration
+  - (optional) **Pipelines** define named build recipes (steps, tools, test runners) for advanced orchestration; not required in this prototype
   - **Manifests** specify the template + module versions for a build
   - **Modules** are composable Docker layers with versioned fragments
   - **Test Plans** define matrix combinations to explore (e.g., core/light versions)
@@ -88,7 +90,7 @@ A prototype factory for building Docker images from composable layers. The goal 
   - Idempotency keys naturally derive from template/module versions, base digest, and target platform.
   - Considerations & mitigations: the version matrix can grow quickly and drift if versions change ad‑hoc. Address by curating supported sets, pinning manifest entries, and using compatibility records as an allowlist/cache.
 
-- **Configuration-first, read-only control plane** – Products/pipelines/artifacts live as JSON and are served read‑only via FastAPI for clarity and auditability.
+- **Configuration-first, read-only control plane** – Products/(optional) pipelines/artifacts live as JSON and are served read‑only via FastAPI for clarity and auditability.
   - JSON lives under `control_plane/data/`; the API simply reflects what’s on disk for transparency in this prototype.
   - Write paths (scheduling, promotions) can be added later with validation and a backing DB to avoid drift.
   - Records and evidence are treated as data plane concerns; the control plane links to them and summarizes rollups.
@@ -119,11 +121,11 @@ The Factory prototype uses a hierarchical data structure where each entity has s
 ### Core Entities
 
 - **Products** (`control_plane/data/product.json`): Define what to build with metadata like image names, tags, and manifest references
-- **Pipelines** (`control_plane/data/pipeline.json`): Define build processes with steps, tools, and test runners
+- (optional) **Pipelines** (`control_plane/data/pipeline.json`): Named build recipes (steps, tools, test runners)
 - **Manifests** (`control_plane/data/manifest.json`): Specify template + module version combinations for reproducible builds
-- **Modules** (`control_plane/data/modules/`): Versioned Docker layer fragments with metadata and Dockerfile pieces
+- **Modules** (`modules/`): Versioned Docker layer fragments with metadata and Dockerfile pieces
 - **Test Plans** (`control_plane/data/test_plan.json`): Define matrix combinations to explore (e.g., core/light version matrices)
-- **Schemas** (`control_plane/data/schemas/`): JSON schemas for validation (e.g., compatibility records)
+- **Schemas** (`schemas/`): JSON schemas for validation (e.g., compatibility records)
 - **Compatibility Records** (`control_plane/data/compatibility/records/`): Build results with evidence pointers
 - **Evidence** (`control_plane/data/compatibility/evidence/`): Build logs and test outputs
 - **SBOMs** (`control_plane/data/compatibility/sbom/`): Software Bill of Materials for security/compliance
@@ -348,7 +350,3 @@ When time permits, the following enhancements are planned to further improve the
 - **Enterprise governance integration**: Better integration with enterprise governance tools for compliance and security management
 - **Enhanced observability**: Improve the design for observability using OpenTelemetry for comprehensive monitoring and tracing
 - **Infrastructure orchestration**: Design the infrastructure orchestrator to dynamically provision nodes for use as executors
-
-
-
-

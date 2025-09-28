@@ -1,5 +1,7 @@
 # Factory Scale-Out Plan
 
+[Back to Executive Summary](executive_summary.md)
+
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
 This document proposes a scalable architecture for the Factory to render, build, test, and record compatibility for many manifest combinations across heterogeneous infrastructure (multi-arch CPU, GPU), while maximizing cache reuse for base OS, Security, and Core layers.
