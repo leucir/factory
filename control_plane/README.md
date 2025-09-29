@@ -46,3 +46,7 @@ Run `pytest control_plane/tests` to validate the API layer. Tests ensure the sim
 4. Gate promotions based on compatibility lookups.
 
 The control plane stays deliberately simple in code while its configuration (JSON files) now captures the layered image design.
+
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.
