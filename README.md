@@ -344,3 +344,7 @@ When time permits, the following enhancements are planned to further improve the
 - **Enterprise governance integration**: Better integration with enterprise governance tools for compliance and security management
 - **Enhanced observability**: Improve the design for observability using OpenTelemetry for comprehensive monitoring and tracing
 - **Infrastructure orchestration**: Design the infrastructure orchestrator to dynamically provision nodes for use as executors
+
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.

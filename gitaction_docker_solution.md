@@ -5,6 +5,10 @@
 
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.
+
 ## 1. Purpose
 
 Apply the Factory’s design (manifests, fragments, stitch, cache, evidence) using GitHub Actions as a pragmatic alternative to building a custom control plane and executors on day one. We focus on how these tools interlock; for how‑tos, see official links.

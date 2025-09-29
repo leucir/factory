@@ -4,6 +4,10 @@
 
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.
+
 ## Problem
 
 As the number of manifest combinations grows (Base OS × Security × Core × Light × App variants, multi‑arch, GPU), naïve builds become slow and costly:

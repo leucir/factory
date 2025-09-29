@@ -92,3 +92,7 @@ This mock will eventually be replaced with a real model inference server that pr
 - **Production Performance**: Optimized for production workloads
 - **Full OpenAI Compatibility**: Complete implementation of OpenAI API features
 - **Scalability**: Support for high-throughput inference requests
+
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.

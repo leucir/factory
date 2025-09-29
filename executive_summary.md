@@ -140,3 +140,7 @@ flowchart LR
 - Caching strategy: [caching_layers.md](caching_layers.md)
 - AI improving the factory: [ai4tech.md](ai4tech.md)
 - An alternative using Github actions and Docker Bake: [gitaction_docker_solution.md](gitaction_docker_solution.md)
+
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.

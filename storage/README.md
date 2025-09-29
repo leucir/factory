@@ -14,3 +14,7 @@ storage/
 ```
 
 Use this area to stash large assets that the build pipeline can mount or copy as part of the app layer. Module fragments reference the object store via scripts or environment variables when needed.
+
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.

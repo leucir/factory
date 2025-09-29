@@ -4,6 +4,10 @@
 
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.
+
 This document proposes a scalable architecture for the Factory to render, build, test, and record compatibility for many manifest combinations across heterogeneous infrastructure (multi-arch CPU, GPU), while maximizing cache reuse for base OS, Security, and Core layers.
 
 ## Goals

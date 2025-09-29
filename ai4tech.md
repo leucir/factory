@@ -2,6 +2,10 @@
 
 This repository is a prototype. The ideas below are evolving; they are intended to guide experimentation and can be adapted as we learn.
 
+---
+
+**Note**: This prototype was developed with AI assistance under full human supervision and control. AI was used to support the development process while maintaining human oversight and decision-making throughout.
+
 This document describes how AI can be used to enhance the Factory's container build, test, and deployment capabilities. The Factory's modular architecture, comprehensive data collection, and scalable infrastructure provide an ideal foundation for AI-driven optimization and automation.
 
 ## AI Integration Architecture
